@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Grain Visits — Upload</title>
+<script src="https://cdn.jsdelivr.net/npm/exifr@7/dist/lite.umd.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
+  background: #f5f5f5;
+  color: #1a1a1a;
+  min-height: 100vh;
+}
+
+header {
+  background: white;
+  border-bottom: 1px solid #e0e0e0;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+header span { font-size: 12px; color: #888; margin-left: 8px; font-weight: normal; }
+
+#gear-btn {
+  background: none;
+  border: none;
+  font-size: 22px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 8px;
+  color: #555;
+}
+#gear-btn:hover { background: #f0f0f0; }
+
+/* ── Settings panel ── */
+#settings-panel {
+  background: white;
+  border-bottom: 2px solid #e8e8e8;
+  padding: 20px 18px;
+}
+#settings-panel h2 { font-size: 15px; margin-bottom: 14px; color: #333; }
+.field { margin-bottom: 14px; }
+.field label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+.field input, .field select {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  background: white;
+  color: #1a1a1a;
+  -webkit-appearance: none;
+}
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: #FFACDE;
+}
+.field .hint { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+.btn-row { display: flex; gap: 10px; margin-top: 16px; }
+.btn {
+  flex: 1;
+  padding: 11px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.btn:active { opacity: 0.75; }
+.btn-primary { background: #1a1a1a; color: white; }
+.btn-secondary { background: #f0f0f0; color: #333; }
+.btn-share { background: #AAFF55; color: #1a1a1a; }
+
+#share-link-box {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: #f8f8f8;
+  border-radius: 8px;
+  font-size: 12px;
+  word-break: break-all;
+  color: #0645ad;
+  display: none;
+}
+
+/* ── Main upload form ── */
+main { padding: 20px 16px 40px; max-width: 480px; margin: 0 auto; }
+
+/* Photo picker */
+#photo-area {
+  border: 2px dashed #ddd;
+  border-radius: 16px;
+  padding: 28px 16px;
+  text-align: center;
+  background: white;
+  margin-bottom: 16px;
+  cursor: pointer;
+  transition: border-color 0.2s;
+  position: relative;
+}
+#photo-area.has-photo { border-color: #AAFF55; padding: 0; overflow: hidden; }
+#photo-area:hover { border-color: #FFACDE; }
+#photo-preview {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  display: none;
+  border-radius: 14px;
+}
+#photo-area.has-photo #photo-preview { display: block; }
+#photo-area.has-photo #photo-placeholder { display: none; }
+#photo-placeholder { pointer-events: none; }
+#photo-placeholder .icon { font-size: 48px; margin-bottom: 10px; }
+#photo-placeholder p { font-size: 15px; color: #888; }
+#photo-placeholder p small { font-size: 12px; color: #bbb; }
+#file-input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+
+/* Card sections */
+.card {
+  background: white;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+.card-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+/* Visit colour swatches */
+#visit-row { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.swatch.selected { border-color: #1a1a1a; transform: scale(1.15); }
+
+#visit-name {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  -webkit-appearance: none;
+}
+#visit-name:focus { outline: none; border-color: #FFACDE; }
+
+/* Location row */
+#location-display {
+  font-size: 14px;
+  color: #555;
+  padding: 8px 0;
+}
+#location-display.ok { color: #2d8a4e; }
+#location-display.warn { color: #cc7700; }
+#locate-btn {
+  margin-top: 8px;
+  padding: 8px 14px;
+  background: #f0f0f0;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  color: #333;
+}
+
+/* Upload button */
+#upload-btn {
+  width: 100%;
+  padding: 16px;
+  background: #1a1a1a;
+  color: white;
+  border: none;
+  border-radius: 14px;
+  font-size: 17px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 8px;
+  transition: opacity 0.15s;
+}
+#upload-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#upload-btn:not(:disabled):active { opacity: 0.8; }
+
+/* Progress */
+#progress-area {
+  display: none;
+  margin-top: 14px;
+  text-align: center;
+}
+.progress-bar-wrap {
+  height: 6px;
+  background: #eee;
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #FFACDE, #AAFF55);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.3s;
+}
+#progress-msg { font-size: 13px; color: #666; }
+
+/* Toast */
+#toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  color: white;
+  padding: 12px 20px;
+  border-radius: 24px;
+  font-size: 14px;
+  z-index: 9999;
+  display: none;
+  max-width: 85vw;
+  text-align: center;
+}
+#toast.success { background: #2d8a4e; }
+#toast.error   { background: #c0392b; }
+</style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>Grain Visits <span>Plant Upload</span></h1>
+  </div>
+  <button id="gear-btn" title="Settings">⚙</button>
+</header>
+
+<!-- Settings panel (hidden by default) -->
+<div id="settings-panel" style="display:none">
+  <h2>GitHub Repository Settings</h2>
+
+  <div class="field">
+    <label>GitHub Username</label>
+    <input type="text" id="cfg-owner" placeholder="e.g. isabellaw" autocomplete="off" autocapitalize="none">
+  </div>
+  <div class="field">
+    <label>Repository Name</label>
+    <input type="text" id="cfg-repo" placeholder="e.g. grain-visits" autocomplete="off" autocapitalize="none">
+  </div>
+  <div class="field">
+    <label>Personal Access Token (PAT)</label>
+    <input type="password" id="cfg-token" placeholder="ghp_xxxxxxxxxxxxx" autocomplete="off">
+    <div class="hint">
+      Create at github.com → Settings → Developer settings → Fine-grained tokens.
+      Grant <b>Contents: Read &amp; Write</b> for this repo only.
+    </div>
+  </div>
+  <div class="field">
+    <label>Your Name</label>
+    <input type="text" id="cfg-name" placeholder="e.g. Isabel" autocapitalize="words">
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary" onclick="saveSettings()">Save</button>
+    <button class="btn btn-secondary" onclick="toggleSettings()">Close</button>
+  </div>
+
+  <button class="btn btn-share" style="width:100%;margin-top:10px;" onclick="generateShareLink()">
+    🔗 Generate link to share with friends
+  </button>
+  <div id="share-link-box">
+    <div id="share-link-text"></div>
+    <button onclick="copyShareLink()" style="margin-top:6px;padding:4px 10px;border:1px solid #ccc;border-radius:6px;background:white;cursor:pointer;font-size:12px;">Copy</button>
+  </div>
+  <div style="margin-top:12px;padding:10px;background:#fff8e1;border-radius:8px;font-size:12px;color:#7a5c00;">
+    ⚠ The share link contains your token — only send it via a private message to trusted friends.
+    Consider using a fine-grained PAT limited to this one repo.
+  </div>
+</div>
+
+<!-- Main upload form -->
+<main>
+
+  <!-- Photo picker -->
+  <div id="photo-area">
+    <input type="file" id="file-input" accept="image/*" capture="environment">
+    <div id="photo-placeholder">
+      <div class="icon">📷</div>
+      <p>Tap to take a photo<br><small>or choose from your library</small></p>
+    </div>
+    <img id="photo-preview" alt="preview">
+  </div>
+
+  <!-- Visit -->
+  <div class="card">
+    <div class="card-title">Visit</div>
+    <div id="visit-row"></div>
+    <input type="text" id="visit-name" placeholder="Visit name (e.g. June 2025)">
+  </div>
+
+  <!-- Date -->
+  <div class="card">
+    <div class="card-title">Date</div>
+    <input type="datetime-local" id="photo-date" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;">
+  </div>
+
+  <!-- Location -->
+  <div class="card">
+    <div class="card-title">Location</div>
+    <div id="location-display">No location yet</div>
+    <button id="locate-btn" onclick="useDeviceLocation()">📍 Use device location instead</button>
+  </div>
+
+  <!-- Species (optional) -->
+  <div class="card">
+    <div class="card-title">Species <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa;font-size:11px;">— optional</span></div>
+    <input type="text" id="species-sci" placeholder="Scientific name" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;margin-bottom:8px;-webkit-appearance:none;" autocapitalize="words">
+    <input type="text" id="species-common" placeholder="Common name" style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;-webkit-appearance:none;" autocapitalize="words">
+  </div>
+
+  <!-- Notes (optional) -->
+  <div class="card">
+    <div class="card-title">Notes <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#aaa;font-size:11px;">— optional</span></div>
+    <textarea id="notes" placeholder="Any observations..." rows="2"
+      style="width:100%;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;font-size:15px;resize:none;font-family:inherit;"></textarea>
+  </div>
+
+  <button id="upload-btn" onclick="doUpload()" disabled>Upload Photo</button>
+
+  <div id="progress-area">
+    <div class="progress-bar-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+    <div id="progress-msg">Preparing…</div>
+  </div>
+
+</main>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════════════════════════════════════
+   PALETTE  — extends the existing 4 colours
+   ══════════════════════════════════════════ */
+var PALETTE = [
+  "#FFACDE","#AAFF55","#FF33CC","#1A7050",
+  "#FF7043","#AB47BC","#00ACC1","#FFD54F",
+  "#66BB6A","#EF5350","#42A5F5","#B0BEC5"
+];
+
+function visitColor(name) {
+  var h = 5381;
+  for (var i = 0; i < name.length; i++)
+    h = ((h << 5) + h) + name.charCodeAt(i);
+  return PALETTE[Math.abs(h) % PALETTE.length];
+}
+
+/* ══════════════════════════════════════════
+   SETTINGS
+   ══════════════════════════════════════════ */
+function loadSettings() {
+  return JSON.parse(localStorage.getItem('grain_config') || '{}');
+}
+function saveSettings() {
+  var cfg = {
+    owner: document.getElementById('cfg-owner').value.trim(),
+    repo:  document.getElementById('cfg-repo').value.trim(),
+    token: document.getElementById('cfg-token').value.trim(),
+    name:  document.getElementById('cfg-name').value.trim() || 'Friend',
+  };
+  localStorage.setItem('grain_config', JSON.stringify(cfg));
+  showToast('Settings saved', 'success');
+  toggleSettings();
+}
+function applyConfigToForm() {
+  var cfg = loadSettings();
+  document.getElementById('cfg-owner').value = cfg.owner || '';
+  document.getElementById('cfg-repo').value  = cfg.repo  || '';
+  document.getElementById('cfg-token').value = cfg.token || '';
+  document.getElementById('cfg-name').value  = cfg.name  || '';
+}
+function toggleSettings() {
+  var p = document.getElementById('settings-panel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+  if (p.style.display === 'block') applyConfigToForm();
+}
+document.getElementById('gear-btn').addEventListener('click', toggleSettings);
+
+function generateShareLink() {
+  var cfg = loadSettings();
+  if (!cfg.owner || !cfg.token) { showToast('Save settings first', 'error'); return; }
+  var encoded = btoa(JSON.stringify(cfg));
+  var link = window.location.href.split('#')[0] + '#cfg=' + encoded;
+  document.getElementById('share-link-text').textContent = link;
+  document.getElementById('share-link-box').style.display = 'block';
+}
+function copyShareLink() {
+  var text = document.getElementById('share-link-text').textContent;
+  navigator.clipboard.writeText(text).then(function() {
+    showToast('Link copied!', 'success');
+  });
+}
+
+/* Auto-load config from URL hash (shared links) */
+(function() {
+  var hash = window.location.hash;
+  if (hash.startsWith('#cfg=')) {
+    try {
+      var cfg = JSON.parse(atob(hash.slice(5)));
+      localStorage.setItem('grain_config', JSON.stringify(cfg));
+      history.replaceState(null, '', window.location.pathname);
+      showToast('Ready to upload, ' + (cfg.name || 'friend') + '!', 'success');
+    } catch(e) {}
+  }
+})();
+
+/* ══════════════════════════════════════════
+   VISIT SWATCHES
+   ══════════════════════════════════════════ */
+var selectedColor = PALETTE[0];
+
+(function buildSwatches() {
+  var row = document.getElementById('visit-row');
+  PALETTE.forEach(function(col, i) {
+    var s = document.createElement('div');
+    s.className = 'swatch' + (i === 0 ? ' selected' : '');
+    s.style.background = col;
+    s.title = col;
+    s.addEventListener('click', function() {
+      document.querySelectorAll('.swatch').forEach(function(x) { x.classList.remove('selected'); });
+      s.classList.add('selected');
+      selectedColor = col;
+    });
+    row.appendChild(s);
+  });
+})();
+
+/* Sync swatch when visit name changes */
+document.getElementById('visit-name').addEventListener('input', function() {
+  var col = visitColor(this.value || ' ');
+  document.querySelectorAll('.swatch').forEach(function(s) {
+    s.classList.toggle('selected', s.style.background === col || s.style.backgroundColor === col);
+  });
+  selectedColor = col;
+  // Pick swatch matching computed colour
+  var swatches = document.querySelectorAll('.swatch');
+  swatches.forEach(function(s) { s.classList.remove('selected'); });
+  for (var i = 0; i < PALETTE.length; i++) {
+    if (PALETTE[i] === col) { swatches[i].classList.add('selected'); break; }
+  }
+});
+
+/* Default visit name = current month */
+(function() {
+  var now = new Date();
+  var months = ['January','February','March','April','May','June',
+                'July','August','September','October','November','December'];
+  document.getElementById('visit-name').value =
+    months[now.getMonth()] + ' ' + now.getFullYear();
+  selectedColor = visitColor(document.getElementById('visit-name').value);
+  document.getElementById('photo-date').value =
+    now.toISOString().slice(0,16);
+})();
+
+/* ══════════════════════════════════════════
+   PHOTO SELECTION + EXIF
+   ══════════════════════════════════════════ */
+var photoFile = null;
+var photoLat = null, photoLon = null;
+
+document.getElementById('file-input').addEventListener('change', async function() {
+  var file = this.files[0];
+  if (!file) return;
+  photoFile = file;
+
+  /* Preview */
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('photo-preview').src = e.target.result;
+    document.getElementById('photo-area').classList.add('has-photo');
+  };
+  reader.readAsDataURL(file);
+
+  /* Extract EXIF */
+  try {
+    var exif = await exifr.parse(file, ['GPSLatitude','GPSLongitude',
+      'GPSLatitudeRef','GPSLongitudeRef','DateTimeOriginal','CreateDate']);
+    if (exif) {
+      /* GPS */
+      if (exif.latitude !== undefined && exif.longitude !== undefined) {
+        photoLat = exif.latitude;
+        photoLon = exif.longitude;
+        setLocationDisplay(photoLat, photoLon, 'from photo');
+      } else {
+        setLocationDisplay(null, null, 'No GPS in photo — use device location below');
+      }
+      /* Date */
+      var dt = exif.DateTimeOriginal || exif.CreateDate;
+      if (dt) {
+        var d = new Date(dt);
+        if (!isNaN(d)) {
+          document.getElementById('photo-date').value = d.toISOString().slice(0,16);
+          /* Update visit name to match photo month */
+          var months = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+          document.getElementById('visit-name').value =
+            months[d.getMonth()] + ' ' + d.getFullYear();
+          selectedColor = visitColor(document.getElementById('visit-name').value);
+        }
+      }
+    }
+  } catch(e) {
+    setLocationDisplay(null, null, 'Could not read EXIF');
+  }
+
+  checkReady();
+});
+
+function setLocationDisplay(lat, lon, note) {
+  var el = document.getElementById('location-display');
+  if (lat !== null) {
+    el.textContent = lat.toFixed(5) + ', ' + lon.toFixed(5) + '  (' + note + ')';
+    el.className = 'ok';
+  } else {
+    el.textContent = note;
+    el.className = 'warn';
+  }
+}
+
+function useDeviceLocation() {
+  if (!navigator.geolocation) { showToast('Geolocation not supported', 'error'); return; }
+  document.getElementById('location-display').textContent = 'Getting location…';
+  navigator.geolocation.getCurrentPosition(function(pos) {
+    photoLat = pos.coords.latitude;
+    photoLon = pos.coords.longitude;
+    setLocationDisplay(photoLat, photoLon, 'device GPS');
+    checkReady();
+  }, function() {
+    setLocationDisplay(null, null, 'Location access denied');
+  });
+}
+
+function checkReady() {
+  document.getElementById('upload-btn').disabled =
+    !(photoFile && photoLat !== null);
+}
+
+/* ══════════════════════════════════════════
+   IMAGE COMPRESSION
+   ══════════════════════════════════════════ */
+function compressImage(file, maxPx, quality) {
+  return new Promise(function(resolve) {
+    var img = new Image();
+    img.onload = function() {
+      var scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+      var w = Math.round(img.width * scale);
+      var h = Math.round(img.height * scale);
+      var canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      canvas.toBlob(function(blob) { resolve(blob); }, 'image/jpeg', quality);
+    };
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+/* ══════════════════════════════════════════
+   GITHUB UPLOAD
+   ══════════════════════════════════════════ */
+function setProgress(pct, msg) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-msg').textContent = msg;
+}
+
+async function doUpload() {
+  var cfg = loadSettings();
+  if (!cfg.owner || !cfg.repo || !cfg.token) {
+    showToast('Please configure GitHub settings first (⚙)', 'error');
+    toggleSettings();
+    return;
+  }
+
+  document.getElementById('upload-btn').disabled = true;
+  document.getElementById('progress-area').style.display = 'block';
+  setProgress(5, 'Compressing photo…');
+
+  try {
+    /* 1. Compress */
+    var compressed = await compressImage(photoFile, 1920, 0.82);
+
+    /* 2. Build metadata entry */
+    var now = new Date();
+    var ts = now.toISOString().replace(/[-:T]/g,'').slice(0,15);
+    var rand = Math.random().toString(36).slice(2,6);
+    var fname = ts + '_' + rand + '.jpg';
+
+    var visitName  = document.getElementById('visit-name').value.trim() || 'Unnamed visit';
+    var dateVal    = document.getElementById('photo-date').value;
+    var sciName    = document.getElementById('species-sci').value.trim();
+    var comName    = document.getElementById('species-common').value.trim();
+    var notes      = document.getElementById('notes').value.trim();
+
+    var safeFolderName = visitName.replace(/[^A-Za-z0-9 _\-]/g,'').trim().replace(/\s+/g,'_');
+    var photoPath = 'photos/' + safeFolderName + '/' + fname;
+
+    var entry = {
+      filename:        fname,
+      github_path:     photoPath,
+      visit_folder:    visitName,
+      color:           selectedColor,
+      scientific_name: sciName,
+      common_name:     comName,
+      confidence:      sciName ? 'manual' : '',
+      latitude:        parseFloat(photoLat.toFixed(6)),
+      longitude:       parseFloat(photoLon.toFixed(6)),
+      datetime:        dateVal ? dateVal.replace('T',' ') : '',
+      uploader:        cfg.name || 'Friend',
+      notes:           notes,
+    };
+
+    var apiBase = 'https://api.github.com/repos/' + cfg.owner + '/' + cfg.repo + '/contents';
+    var headers = {
+      'Authorization': 'token ' + cfg.token,
+      'Content-Type': 'application/json',
+    };
+
+    /* 3. Upload photo */
+    setProgress(25, 'Uploading photo…');
+    var photoB64 = await blobToBase64(compressed);
+    var photoResp = await fetch(apiBase + '/' + photoPath, {
+      method: 'PUT',
+      headers: headers,
+      body: JSON.stringify({
+        message: 'Add photo: ' + fname + ' (' + cfg.name + ')',
+        content: photoB64,
+      }),
+    });
+    if (!photoResp.ok) {
+      var err = await photoResp.json().catch(function(){return {};});
+      throw new Error('Photo upload failed: ' + (err.message || photoResp.status));
+    }
+
+    /* 4. Update metadata.json (with retry for SHA conflicts) */
+    setProgress(65, 'Updating metadata…');
+    await commitMetadata(apiBase, headers, entry);
+
+    setProgress(100, 'Done!');
+    showToast('✓ Photo uploaded successfully!', 'success');
+    setTimeout(resetForm, 1800);
+
+  } catch(e) {
+    showToast('Upload failed: ' + e.message, 'error');
+    document.getElementById('upload-btn').disabled = false;
+    setProgress(0, '');
+    document.getElementById('progress-area').style.display = 'none';
+  }
+}
+
+async function commitMetadata(apiBase, headers, newEntry, retries) {
+  retries = retries === undefined ? 3 : retries;
+  for (var attempt = 0; attempt < retries; attempt++) {
+    /* Fetch current file (to get SHA) */
+    var getResp = await fetch(apiBase + '/metadata.json', { headers: headers });
+    var entries = [], sha = null;
+    if (getResp.ok) {
+      var fileData = await getResp.json();
+      sha = fileData.sha;
+      try {
+        entries = JSON.parse(atob(fileData.content.replace(/\n/g,'')));
+      } catch(e) { entries = []; }
+    }
+    entries.push(newEntry);
+
+    var body = {
+      message: 'Update metadata: ' + newEntry.filename,
+      content: btoa(unescape(encodeURIComponent(JSON.stringify(entries, null, 2)))),
+    };
+    if (sha) body.sha = sha;
+
+    var putResp = await fetch(apiBase + '/metadata.json', {
+      method: 'PUT',
+      headers: headers,
+      body: JSON.stringify(body),
+    });
+    if (putResp.ok) return;
+    if (putResp.status === 409 && attempt < retries - 1) {
+      await new Promise(function(r) { setTimeout(r, 600 * (attempt + 1)); });
+      continue;
+    }
+    var err = await putResp.json().catch(function(){return {};});
+    throw new Error('Metadata update failed: ' + (err.message || putResp.status));
+  }
+}
+
+function blobToBase64(blob) {
+  return new Promise(function(resolve, reject) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      resolve(reader.result.split(',')[1]);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
+function resetForm() {
+  photoFile = null; photoLat = null; photoLon = null;
+  document.getElementById('photo-area').classList.remove('has-photo');
+  document.getElementById('photo-preview').src = '';
+  document.getElementById('file-input').value = '';
+  document.getElementById('location-display').textContent = 'No location yet';
+  document.getElementById('location-display').className = '';
+  document.getElementById('species-sci').value = '';
+  document.getElementById('species-common').value = '';
+  document.getElementById('notes').value = '';
+  document.getElementById('progress-area').style.display = 'none';
+  document.getElementById('upload-btn').disabled = true;
+}
+
+/* ══════════════════════════════════════════
+   TOAST
+   ══════════════════════════════════════════ */
+var toastTimer;
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = type || '';
+  t.style.display = 'block';
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(function() { t.style.display = 'none'; }, 3200);
+}
+</script>
+</body>
+</html>
