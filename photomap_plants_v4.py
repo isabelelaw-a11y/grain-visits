@@ -364,8 +364,14 @@ print(f"World GeoJSON: {len(world_geojson_str)//1024} KB, "
 avg_lat = sum(p["lat"] for p in plants) / len(plants)
 avg_lon = sum(p["lon"] for p in plants) / len(plants)
 
+CARTO_KEY = "cb1_5a7g_1_e655f85a9afd01cb1916066b"
+
 m = folium.Map(location=[avg_lat, avg_lon], zoom_start=17,
-               tiles="CartoDB positron")
+                   tiles=("https://{s}.basemaps.cartocdn.com/rastertiles/light_all/"
+           "{z}/{x}/{y}{r}.png?key=" + CARTO_KEY),
+    attr=('&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> '
+          'contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'),
+)
 m.get_root().html.add_child(folium.Element(
     "<style>.leaflet-tile-pane{filter:grayscale(100%)}</style>"
 ))
